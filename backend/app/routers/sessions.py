@@ -153,7 +153,7 @@ def _process_upload(
             warnings.append(f"You chose {source} as the source language, but the book looks like {detected}.")
 
         chapters = pdf_reader.detect_chapters(doc, loaded.paragraphs, settings.default_pages_per_chunk, loaded.book.pages)
-        images = pdf_reader.extract_images(doc, sdir / "images")
+        images = pdf_reader.extract_images(doc, sdir / "images", skip_pages=ocr_pages)
         title = _book_title(doc.metadata.get("title") if doc.metadata else None, filename)
 
         (sdir / "original.pdf").write_bytes(data)
@@ -195,6 +195,7 @@ def _process_upload(
             "glossary": {},
             "warnings": warnings,
             "scanned_pages": len(ocr_pages),
+            "scan_page_list": ocr_pages,
         }
         store.save_state(session_id, state)
         log.info("session created sid=%s pages=%d chapters=%d", session_id, doc.page_count, len(chapters))

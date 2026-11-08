@@ -106,11 +106,35 @@ def _symbol_text(font: str, text: str) -> str:
     return text
 
 
+INVISIBLE_SHARE = 0.8
+
+
+def is_invisible_text_layer(page: fitz.Page) -> bool:
+    """True when (nearly) all text on the page is invisible (PDF text render mode 3)."""
+    if not page.get_images():
+        return False  # hidden OCR layers always sit on top of a scanned image
+    try:
+        trace = page.get_texttrace()
+    except Exception:  # noqa: BLE001
+        return False
+    total = invisible = 0
+    for span in trace:
+        n = len(span.get("chars", ()))
+        total += n
+        if span.get("type") == 3 or span.get("opacity", 1) == 0:
+            invisible += n
+    return total > 0 and invisible / total >= INVISIBLE_SHARE
+
+
 def _page_lines(page: fitz.Page, page_no: int, font_chars: Counter[str], font_display: dict[str, str]) -> PageLines:
     flags = fitz.TEXT_PRESERVE_WHITESPACE | fitz.TEXT_MEDIABOX_CLIP
     data = page.get_text("dict", flags=flags)
     rect = page.rect
     pl = PageLines(page=page_no, width=rect.width, height=rect.height, layout=analyze_page(page))
+    if is_invisible_text_layer(page):
+        # A scanner's hidden OCR layer ("searchable PDF"): often garbled, especially for Hindi.
+        # Ignore it; the page is read again with our OCR.
+        return pl
     for blk in data.get("blocks", []):
         if blk.get("type", 0) != 0:
             continue
@@ -339,7 +363,10 @@ MIN_IMAGE_PX = 50
 MAX_PAGES_PER_IMAGE = 3  # images repeated on more pages are logos/backgrounds
 
 
-def extract_images(doc: fitz.Document, out_dir: Path) -> list[ImageInfo]:
+def extract_images(doc: fitz.Document, out_dir: Path, skip_pages: list[int] | None = None) -> list[ImageInfo]:
+    """Figures on text pages. Pages in `skip_pages` (scans read with OCR) are skipped: their
+    images are the page itself (sometimes in strips), not figures."""
+    skip = set(skip_pages or [])
     out_dir.mkdir(parents=True, exist_ok=True)
     xref_pages: Counter[int] = Counter()
     for page in doc:
@@ -349,6 +376,8 @@ def extract_images(doc: fitz.Document, out_dir: Path) -> list[ImageInfo]:
     result: list[ImageInfo] = []
     for i, page in enumerate(doc):
         page_no = i + 1
+        if page_no in skip:
+            continue
         page_area = page.rect.width * page.rect.height
         text_boxes = [fitz.Rect(b[:4]) for b in page.get_text("blocks") if b[4].strip()]
         seen: set[int] = set()

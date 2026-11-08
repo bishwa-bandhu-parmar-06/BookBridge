@@ -111,6 +111,8 @@ Rules:
 - A bulleted question with its answer is ONE "list_item": "• <question> – <answer>".
 - Numbered points are "list_item" starting with their number ("1. ...").
 - Tables and side-by-side charts: type "table", one row per line, cells separated by " | ".
+  A whole table (with its title row, if any) is ONE block: all its rows in one "text", separated by newlines.
+- A box with a title and numbered points is NOT a table: a "heading" (level 3) followed by one "list_item" per point.
 - Formulas and equations: type "formula", exactly as printed.
 - Write Devanagari correctly (matras, conjuncts, nukta). Keep numbers, dates and names exactly.
 Return ONLY JSON: {"blocks": [{"type": "...", "level": 1|2|3 (headings only), "text": "..."}]}

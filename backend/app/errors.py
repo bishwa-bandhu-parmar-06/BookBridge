@@ -52,6 +52,17 @@ def ocr_unavailable() -> AppError:
     )
 
 
+def ocr_failed(pages: list[int]) -> AppError:
+    shown = ", ".join(str(p) for p in pages[:8]) + ("…" if len(pages) > 8 else "")
+    return AppError(
+        503, "ocr_failed",
+        f"Could not read scanned page(s) {shown} right now (the AI service may be busy). "
+        "The other pages are saved — press “Continue translation” to try these again.",
+        f"स्कैन पृष्ठ {shown} अभी पढ़े नहीं जा सके (AI सेवा व्यस्त हो सकती है)। बाकी पृष्ठ सहेजे गए हैं — "
+        "इन्हें फिर से आज़माने के लिए “अनुवाद जारी रखें” दबाएँ।",
+    )
+
+
 def corrupt_pdf() -> AppError:
     return AppError(
         400, "corrupt_pdf",
@@ -95,8 +106,8 @@ def empty_pdf() -> AppError:
 def scanned_pdf() -> AppError:
     return AppError(
         400, "scanned_pdf",
-        "This looks like a scanned PDF. Only original digital PDFs are supported right now.",
-        "यह स्कैन की गई PDF लगती है। अभी केवल मूल डिजिटल PDF ही समर्थित हैं।",
+        "This PDF seems to have no readable text or printed pages (are the pages blank?).",
+        "इस PDF में पढ़ने योग्य पाठ या छपे पृष्ठ नहीं मिले (क्या पृष्ठ खाली हैं?)।",
     )
 
 
@@ -212,6 +223,14 @@ def preview_not_ready() -> AppError:
         404, "preview_not_ready",
         "This preview page is not available. Please open the preview again.",
         "यह पूर्वावलोकन पृष्ठ उपलब्ध नहीं है। कृपया पूर्वावलोकन फिर से खोलें।",
+    )
+
+
+def page_not_found() -> AppError:
+    return AppError(
+        404, "page_not_found",
+        "This page is not in the book.",
+        "यह पृष्ठ किताब में नहीं है।",
     )
 
 

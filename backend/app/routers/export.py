@@ -96,6 +96,29 @@ def _page_png(path: Path, page: int, width: int) -> Response:
     return Response(content=png, media_type="image/png", headers=_NO_CACHE)
 
 
+# --- original pages --------------------------------------------------------------------------
+
+
+@router.get("/pages/{page}.jpg", response_class=Response,
+            responses={200: {"content": {"image/jpeg": {}}, "description": "Original page image"}, **_ERRS})
+def original_page(
+    session_id: str,
+    page: int,
+    width: int = Query(1000, ge=300, le=1800),
+    store: SessionStore = Depends(get_store),
+) -> Response:
+    """A page of the uploaded book as an image, to compare a scanned page with what OCR read."""
+    path = store.existing_dir(session_id) / "original.pdf"
+    with fitz.open(path) as doc:
+        if not 1 <= page <= doc.page_count:
+            raise errors.page_not_found()
+        pg = doc[page - 1]
+        zoom = width / pg.rect.width
+        jpg = pg.get_pixmap(matrix=fitz.Matrix(zoom, zoom), alpha=False).tobytes("jpeg", jpg_quality=80)
+    # The original never changes during a session; private so shared caches never keep it.
+    return Response(content=jpg, media_type="image/jpeg", headers={"Cache-Control": "private, max-age=3600"})
+
+
 # --- chapter -----------------------------------------------------------------------------------
 
 

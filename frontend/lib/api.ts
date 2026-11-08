@@ -151,6 +151,10 @@ export const DEFAULT_PDF_OPTIONS: PdfOptions = { fontScale: 1, annotations: true
 
 const optionQuery = (o: PdfOptions) => `font_scale=${o.fontScale.toFixed(2)}&annotations=${o.annotations}`;
 
+/** The uploaded book's page as an image (to compare a scanned page with what was read). */
+export const originalPageUrl = (sid: string, page: number, width: number) =>
+  `${API_URL}/api/sessions/${sid}/pages/${page}.jpg?width=${width}`;
+
 export const preview = {
   /** Builds the PDF on the server with the latest translations and returns its page count. */
   prepare: (sid: string, t: PreviewTarget, o: PdfOptions = DEFAULT_PDF_OPTIONS) =>

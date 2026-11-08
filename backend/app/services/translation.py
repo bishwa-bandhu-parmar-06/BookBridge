@@ -315,8 +315,10 @@ def run_translation_job(
         registry.update(job.id, status="done", progress=100, message=msg, notice=None)
         log.info("job %s done in %.1fs failed=%d", job.id, time.time() - started, failed)
 
-    except AppError as e:  # session expired / deleted mid-job
+    except AppError as e:  # session expired / deleted mid-job, or scanned pages not read
         log.info("job %s stopped: %s", job.id, e.code)
+        if e.code == "ocr_failed":
+            _mark_failed(store, sid, cid, job.kind)  # "Continue translation" retries the missing pages
         registry.update(job.id, status="failed", message="Stopped", error=e.message, error_hi=e.message_hi)
     except Exception as e:  # noqa: BLE001
         if isinstance(e, TranslatorConfigError):

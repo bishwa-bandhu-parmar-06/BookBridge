@@ -52,6 +52,8 @@ export interface ChapterDetail extends ChapterSummary {
   active_job_id: string | null;
   /** the student's highlights / notes / stars, by paragraph id */
   annotations: Record<string, Annotation>;
+  /** pages of this chapter read with AI (scans / photos); their image can be viewed */
+  scanned_pages?: number[];
 }
 
 export type HighlightColor = "yellow" | "green" | "pink" | "blue";

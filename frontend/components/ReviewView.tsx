@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { ApiError, api, downloadPdf, pdfUrl, type PreviewTarget } from "@/lib/api";
 import { langName } from "@/lib/labels";
@@ -10,6 +10,7 @@ import type { ChapterDetail, Job, SessionSummary } from "@/lib/types";
 import AutoTranslateToggle from "./AutoTranslateToggle";
 import GlossaryPanel from "./GlossaryPanel";
 import ParagraphRow from "./ParagraphRow";
+import ScannedPageRow from "./ScannedPageRow";
 import PdfPreview from "./PdfPreview";
 import { Bi, BiStack, Button, ButtonLink, ErrorBox, Notice, ProgressBar, Spinner, StatusBadge } from "./ui";
 
@@ -156,6 +157,7 @@ export default function ReviewView() {
 
   const translating = chapter.status === "translating" || jobId !== null;
   const editable = !translating && (chapter.status === "review" || chapter.status === "approved");
+  const scanned = new Set(chapter.scanned_pages ?? []);
   const flaggedIds = chapter.paragraphs.filter((p) => p.flagged && p.type !== "formula").map((p) => p.id);
   const untranslated = chapter.paragraphs.filter((p) => !p.translated).length;
   const idx = session.chapters.findIndex((c) => c.id === chapter.id);
@@ -349,22 +351,26 @@ export default function ReviewView() {
             </span>
           </div>
           <ul>
-            {chapter.paragraphs.map((p) => (
-              <ParagraphRow
-                key={p.id}
-                p={p}
-                sourceLang={chapter.source_lang}
-                targetLang={chapter.target_lang}
-                show={show}
-                editable={editable}
-                onToggleFlag={(f) => toggleFlag(p.id, f)}
-                onSave={(text) =>
-                  patchParagraph(p.id, { translated: text }).catch((e) => {
-                    setError(e);
-                    throw e;
-                  })
-                }
-              />
+            {chapter.paragraphs.map((p, i) => (
+              <Fragment key={p.id}>
+                {scanned.has(p.page) && chapter.paragraphs[i - 1]?.page !== p.page && (
+                  <ScannedPageRow sid={sid} page={p.page} />
+                )}
+                <ParagraphRow
+                  p={p}
+                  sourceLang={chapter.source_lang}
+                  targetLang={chapter.target_lang}
+                  show={show}
+                  editable={editable}
+                  onToggleFlag={(f) => toggleFlag(p.id, f)}
+                  onSave={(text) =>
+                    patchParagraph(p.id, { translated: text }).catch((e) => {
+                      setError(e);
+                      throw e;
+                    })
+                  }
+                />
+              </Fragment>
             ))}
           </ul>
         </section>

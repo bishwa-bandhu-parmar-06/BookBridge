@@ -110,6 +110,8 @@ class ChapterDetail(ChapterSummary):
     active_job_id: str | None = None
     #: the student's highlights / notes / stars, by paragraph id
     annotations: dict[str, "Annotation"] = Field(default_factory=dict)
+    #: pages of this chapter that were read with OCR (scans / photos); their image can be viewed
+    scanned_pages: list[int] = Field(default_factory=list)
 
 
 class StartJobResponse(BaseModel):

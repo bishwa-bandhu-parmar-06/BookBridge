@@ -122,6 +122,7 @@ def get_chapter(
         paragraphs=[ParagraphOut(**p) for p in ch["paragraphs"]],
         active_job_id=job.id if job and job.chapter_id == chapter_id else None,
         annotations={pid: Annotation(**a) for pid, a in annotations.live(ch).items()},
+        scanned_pages=[p for p in state.get("scan_page_list", []) if ch["start_page"] <= p <= ch["end_page"]],
     )
 
 

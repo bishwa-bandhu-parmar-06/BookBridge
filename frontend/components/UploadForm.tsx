@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, type DragEvent } from "react";
 
 import { ApiError, api, uploadBook } from "@/lib/api";
+import { isImageFile, preparePhotos } from "@/lib/photos";
 import type { Lang } from "@/lib/types";
 import { Bi, Button, ErrorBox, Notice, ProgressBar, Spinner } from "./ui";
 
@@ -15,7 +16,11 @@ const DIRECTIONS: { value: Direction; en: string; hi: string }[] = [
   { value: "en", en: "English → Hindi", hi: "अंग्रेज़ी → हिंदी" },
 ];
 
-type Phase = { kind: "idle" } | { kind: "uploading"; progress: number } | { kind: "processing" };
+type Phase =
+  | { kind: "idle" }
+  | { kind: "preparing"; done: number; total: number }
+  | { kind: "uploading"; progress: number }
+  | { kind: "processing" };
 
 function formatMB(bytes: number) {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
@@ -47,8 +52,7 @@ export default function UploadForm() {
     const chosen = Array.from(list ?? []);
     if (!chosen.length) return;
     const isPdf = (f: File) => f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf");
-    const isImage = (f: File) => /^image\/(jpeg|png|webp)$/.test(f.type) || /\.(jpe?g|png|webp)$/i.test(f.name);
-    const ok = (chosen.length === 1 && isPdf(chosen[0])) || chosen.every(isImage);
+    const ok = (chosen.length === 1 && isPdf(chosen[0])) || chosen.every(isImageFile);
     if (!ok) {
       setError(
         new ApiError(
@@ -60,8 +64,10 @@ export default function UploadForm() {
       );
       return;
     }
+    const photos = chosen.every(isImageFile);
+    // Photos are shrunk before upload, so their size is checked after that.
     const size = chosen.reduce((n, f) => n + f.size, 0);
-    if (size > limits.max_upload_mb * 1024 * 1024) {
+    if (!photos && size > limits.max_upload_mb * 1024 * 1024) {
       setError(
         new ApiError(
           413,
@@ -72,6 +78,19 @@ export default function UploadForm() {
       );
       return;
     }
+    if (chosen.length > limits.max_pages) {
+      setError(
+        new ApiError(
+          400,
+          "too_many_pages",
+          `You chose ${chosen.length} photos. The maximum is ${limits.max_pages} pages.`,
+          `आपने ${chosen.length} फ़ोटो चुनीं। अधिकतम ${limits.max_pages} पृष्ठ हैं।`,
+        ),
+      );
+      return;
+    }
+    // Photos become pages in file-name order (IMG_2 before IMG_10), like a camera roll.
+    if (photos) chosen.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
     setFiles(chosen);
   }
 
@@ -84,9 +103,23 @@ export default function UploadForm() {
   async function submit() {
     if (!files.length) return;
     setError(null);
-    setPhase({ kind: "uploading", progress: 0 });
     try {
-      const session = await uploadBook(files, direction, (p) => {
+      let toSend = files;
+      if (files.every(isImageFile)) {
+        setPhase({ kind: "preparing", done: 0, total: files.length });
+        toSend = await preparePhotos(files, (done, total) => setPhase({ kind: "preparing", done, total }));
+        const size = toSend.reduce((n, f) => n + f.size, 0);
+        if (size > limits.max_upload_mb * 1024 * 1024) {
+          throw new ApiError(
+            413,
+            "file_too_large",
+            `Even after shrinking, these photos are ${formatMB(size)}. The maximum is ${limits.max_upload_mb} MB — upload fewer photos at a time.`,
+            `छोटा करने के बाद भी ये फ़ोटो ${formatMB(size)} की हैं। अधिकतम ${limits.max_upload_mb} MB है — एक बार में कम फ़ोटो अपलोड करें।`,
+          );
+        }
+      }
+      setPhase({ kind: "uploading", progress: 0 });
+      const session = await uploadBook(toSend, direction, (p) => {
         setPhase(p >= 1 ? { kind: "processing" } : { kind: "uploading", progress: p * 100 });
       });
       router.push(`/session/${session.session_id}`);
@@ -221,6 +254,12 @@ export default function UploadForm() {
 
         <ErrorBox error={error} onDismiss={() => setError(null)} />
 
+        {phase.kind === "preparing" && (
+          <ProgressBar
+            value={(phase.done / phase.total) * 100}
+            label={<Bi en={`Preparing photos ${phase.done}/${phase.total}`} hi={`फ़ोटो तैयार हो रही हैं ${phase.done}/${phase.total}`} />}
+          />
+        )}
         {phase.kind === "uploading" && <ProgressBar value={phase.progress} label={<Bi en="Uploading" hi="अपलोड हो रहा है" />} />}
         {phase.kind === "processing" && (
           <div className="flex items-center gap-3 rounded-lg bg-indigo-50 p-3 text-sm text-indigo-900">
