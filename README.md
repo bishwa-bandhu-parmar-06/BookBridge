@@ -25,6 +25,9 @@ Question-bank layouts ("• question – answer") are kept together as one item.
 **Not supported (yet):** other legacy Hindi fonts (Kruti Dev, Chanakya, DevLys…), text inside pictures or
 diagrams, reproducing the original layout. There are no accounts and nothing is stored permanently.
 
+**Put it online for free:** the website on Vercel and the API on Hugging Face Spaces (or Render). See
+**[DEPLOY.md](DEPLOY.md)** for step-by-step instructions.
+
 ---
 
 ## Contents
@@ -250,7 +253,9 @@ Backend (`backend/.env`):
 | `SESSIONS_DIR` | `./tmp_sessions` | where session folders live |
 | `UPLOAD_RATE_LIMIT_PER_HOUR` | `10` | uploads per IP per hour (`0` = off) |
 | `TRUST_PROXY_HEADERS` | `false` | use `X-Forwarded-For` for the client IP — only behind your own reverse proxy |
-| `FRONTEND_ORIGIN` | `http://localhost:3000` | allowed CORS origin |
+| `FRONTEND_ORIGIN` | `http://localhost:3000` | allowed CORS origin(s), comma-separated |
+| `FRONTEND_ORIGIN_REGEX` | (empty) | extra allowed origins as a regex, e.g. Vercel preview links |
+| `TRUSTED_PROXY_HOPS` | `1` | proxies in front of the API that add to X-Forwarded-For (with `TRUST_PROXY_HEADERS=true`) |
 | `WEASYPRINT_DLL_DIRECTORIES` | — | Windows only, if Pango is not in `C:\msys64` |
 
 Frontend (`frontend/.env.local`): `NEXT_PUBLIC_API_URL` (default `http://localhost:8000`).

@@ -1,0 +1,8 @@
+.venv
+.env
+.env.*
+!.env.example
+tmp_sessions
+tests
+**/__pycache__
+.pytest_cache

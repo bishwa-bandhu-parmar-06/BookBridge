@@ -43,12 +43,15 @@ class RateLimiter:
             del self._hits[k]
 
 
-def client_ip(request: Request, trust_proxy: bool) -> str:
-    """Client IP. Only trusts X-Forwarded-For when explicitly enabled (behind your own proxy)."""
+def client_ip(request: Request, trust_proxy: bool, hops: int = 1) -> str:
+    """Client IP. Only trusts X-Forwarded-For when explicitly enabled (behind your own proxy).
+
+    Each proxy appends the address it saw, so the entry `hops` from the right is the one our
+    own proxy added; anything further left was sent by the client and could be faked."""
     if trust_proxy:
-        fwd = request.headers.get("x-forwarded-for")
+        fwd = [p.strip() for p in request.headers.get("x-forwarded-for", "").split(",") if p.strip()]
         if fwd:
-            return fwd.split(",")[0].strip()
+            return fwd[-min(max(hops, 1), len(fwd))]
     return request.client.host if request.client else "unknown"
 
 

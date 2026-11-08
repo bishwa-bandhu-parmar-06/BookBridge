@@ -37,8 +37,37 @@ export default function UploadForm() {
   const [dragging, setDragging] = useState(false);
   const [limits, setLimits] = useState({ max_upload_mb: 50, max_pages: 500, session_ttl_minutes: 120 });
 
+  // Free hosting puts the server to sleep when nobody uses it; the first request wakes it
+  // (up to about a minute). Keep asking, and say so, instead of showing an error.
+  const [server, setServer] = useState<"checking" | "ok" | "waking" | "down">("checking");
   useEffect(() => {
-    api.config().then(setLimits).catch(() => {});
+    let stop = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const started = Date.now();
+    const slow = setTimeout(() => !stop && setServer((s) => (s === "checking" ? "waking" : s)), 3000);
+    const attempt = () => {
+      api
+        .config()
+        .then((c) => {
+          if (stop) return;
+          setLimits(c);
+          setServer("ok");
+        })
+        .catch(() => {
+          if (stop) return;
+          if (Date.now() - started > 150_000) setServer("down");
+          else {
+            setServer("waking");
+            timer = setTimeout(attempt, 5000);
+          }
+        });
+    };
+    attempt();
+    return () => {
+      stop = true;
+      clearTimeout(slow);
+      clearTimeout(timer);
+    };
   }, []);
 
   const busy = phase.kind !== "idle";
@@ -252,6 +281,23 @@ export default function UploadForm() {
           )}
         </fieldset>
 
+        {server === "waking" && (
+          <div className="flex items-center gap-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
+            <Spinner />
+            <Bi
+              en="Waking up the server… This can take up to a minute after it has been idle."
+              hi="सर्वर चालू हो रहा है… कुछ देर बंद रहने के बाद इसमें एक मिनट तक लग सकता है।"
+            />
+          </div>
+        )}
+        {server === "down" && (
+          <Notice tone="warn">
+            <Bi
+              en="The server is not answering. Please try again in a few minutes."
+              hi="सर्वर जवाब नहीं दे रहा है। कृपया कुछ मिनट बाद फिर कोशिश करें।"
+            />
+          </Notice>
+        )}
         <ErrorBox error={error} onDismiss={() => setError(null)} />
 
         {phase.kind === "preparing" && (
@@ -273,7 +319,7 @@ export default function UploadForm() {
           </div>
         )}
 
-        <Button className="w-full" disabled={!files.length || busy} onClick={submit}>
+        <Button className="w-full" disabled={!files.length || busy || server !== "ok"} onClick={submit}>
           {busy && <Spinner />}
           <Bi en="Upload & find chapters" hi="अपलोड करें और अध्याय खोजें" />
         </Button>

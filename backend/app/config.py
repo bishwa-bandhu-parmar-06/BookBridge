@@ -37,15 +37,26 @@ class Settings(BaseSettings):
     default_pages_per_chunk: int = 10
     sessions_dir: Path = Path("./tmp_sessions")
 
+    # Where the website runs (CORS). Comma-separated for several, e.g.
+    # "https://bookbridge.vercel.app,http://localhost:3000".
     frontend_origin: str = "http://localhost:3000"
+    # Optional regex for extra origins, e.g. Vercel preview links:
+    # "https://bookbridge-[a-z0-9-]+\.vercel\.app"
+    frontend_origin_regex: str = ""
 
     # Per-IP upload rate limit (in-memory). 0 disables it.
     upload_rate_limit_per_hour: int = 10
     # Use X-Forwarded-For for the client IP. Enable ONLY behind your own reverse proxy.
     trust_proxy_headers: bool = False
+    # How many proxies in front of the app add to X-Forwarded-For (hosting platforms: usually 1).
+    trusted_proxy_hops: int = 1
 
     # Text-layer threshold: average non-whitespace characters per page below this => "scanned".
     min_chars_per_page: int = 50
+
+    @property
+    def frontend_origins(self) -> list[str]:
+        return [o.strip().rstrip("/") for o in self.frontend_origin.split(",") if o.strip()]
 
     @property
     def max_upload_bytes(self) -> int:

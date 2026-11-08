@@ -65,7 +65,7 @@ async def upload_guard(request: Request, call_next):  # type: ignore[no-untyped-
     """
     if request.method == "POST" and request.url.path.rstrip("/") == "/api/sessions":
         s = get_settings()
-        ip = client_ip(request, s.trust_proxy_headers)
+        ip = client_ip(request, s.trust_proxy_headers, s.trusted_proxy_hops)
         retry_after = request.app.state.upload_limiter.hit(ip)
         if retry_after is not None:
             log.info("upload rate limited")
@@ -80,7 +80,8 @@ async def upload_guard(request: Request, call_next):  # type: ignore[no-untyped-
 app.add_middleware(BaseHTTPMiddleware, dispatch=upload_guard)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.frontend_origin],
+    allow_origins=settings.frontend_origins,
+    allow_origin_regex=settings.frontend_origin_regex or None,
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
