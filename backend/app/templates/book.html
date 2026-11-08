@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="cover">
+  <h1>{{ book_title }}</h1>
+  <div class="meta">{{ labels.translated }}</div>
+  <div class="meta">{{ labels.direction }}</div>
+</section>
+
+<nav class="toc">
+  <h1>{{ labels.contents }}</h1>
+  <ol>
+  {% for ch in chapters %}
+    <li><a href="#{{ ch.anchor }}">{{ ch.title }}</a></li>
+  {% endfor %}
+  </ol>
+</nav>
+
+{% for ch in chapters %}
+{% include "_chapter.html" %}
+{% endfor %}
+{% endblock %}

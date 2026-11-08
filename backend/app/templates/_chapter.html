@@ -1,0 +1,53 @@
+{# One chapter. Expects `ch` with: anchor, title, parts, blocks[] #}
+{% macro segs(list) %}{% for t, c in list %}{% if c %}<mark class="hl-{{ c }}">{{ t }}</mark>{% else %}{{ t }}{% endif %}{% endfor %}{% endmacro %}
+{% macro star(b) %}{% if b.star %}<span class="star">★ </span>{% endif %}{% endmacro %}
+{% macro note(b) %}{% if b.note %}<div class="note"><b>✎ Note:</b> {{ b.note }}</div>{% endif %}{% endmacro %}
+{% macro render_block(b, in_box=False) %}
+  {% if b.kind == "heading" %}
+    {% set lvl = b.level or 3 %}
+    {% set tag = "h" ~ (lvl + 1) %}
+    <{{ tag }} class="lvl{{ lvl }}{% if in_box %} in-box{% endif %}{% if b.untranslated %} untranslated{% endif %}">{{ star(b) }}{{ segs(b.segs) }}</{{ tag }}>
+    {{ note(b) }}
+  {% elif b.kind == "formula" %}
+    <div class="formula">{{ b.text }}</div>
+  {% elif b.kind == "image" %}
+    <figure><img src="{{ b.src }}" style="width: {{ b.width_pt }}pt" alt=""></figure>
+  {% elif b.kind == "table" and b.rows %}
+    <table class="book{% if b.untranslated %} untranslated{% endif %}">
+      {% for row in b.rows %}
+        {% if row.kind == "title" %}
+        <tr class="title"><th colspan="{{ row.span }}">{{ row.cells[0] }}</th></tr>
+        {% elif row.kind == "head" %}
+        <tr>{% for c in row.cells %}<th>{{ c }}</th>{% endfor %}</tr>
+        {% else %}
+        <tr>{% for c in row.cells %}<td>{{ c }}</td>{% endfor %}</tr>
+        {% endif %}
+      {% endfor %}
+    </table>
+    {{ note(b) }}
+  {% elif b.answer %}
+    <div class="qa{% if b.kind == 'list_item' %} li{% endif %}{% if b.untranslated %} untranslated{% endif %}">
+      <span class="q">{{ star(b) }}{{ segs(b.q_segs) }}</span>
+      <span class="a">– {{ segs(b.a_segs) }}</span>
+    </div>
+    {{ note(b) }}
+  {% else %}
+    <p class="{{ {'list_item': 'li', 'table_text': 'small'}.get(b.kind, '') }}{% if in_box %} in-box{% endif %}{% if b.untranslated %} untranslated{% endif %}">{{ star(b) }}{{ segs(b.segs) }}</p>
+    {{ note(b) }}
+  {% endif %}
+{% endmacro %}
+<section class="chapter" id="{{ ch.anchor }}">
+  {% for part in ch.parts %}
+  <div class="part-title">{{ part }}</div>
+  {% endfor %}
+  <h1 class="chapter-title">{{ ch.title }}</h1>
+  {% for b in ch.blocks %}
+    {% if b.kind == "box" %}
+      <div class="box">
+        {% for inner in b.blocks %}{{ render_block(inner, True) }}{% endfor %}
+      </div>
+    {% else %}
+      {{ render_block(b) }}
+    {% endif %}
+  {% endfor %}
+</section>
